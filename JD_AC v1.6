@@ -1,0 +1,647 @@
+# Script Fully Made By Ichiro (".aw_")
+
+Clear-Host
+
+function Find-SuspiciousFiles {
+
+    Write-Host "     _ ___      _      _   _     _ _           ___ _           _   " -ForegroundColor Yellow
+    Write-Host "  _ | |   \    /_\  __| |_(_)_ _(_) |_ _  _   / __| |_  ___ __| |__" -ForegroundColor Yellow
+    Write-Host " | || | |) |  / _ \/ _|  _| \ V / |  _| || | | (__| ' \/ -_) _| / /" -ForegroundColor Yellow
+    Write-Host "  \__/|___/  /_/ \_\__|\__|_|\_/|_|\__|\_, |  \___|_||_\___\__|_\_\" -ForegroundColor Yellow
+    Write-Host "                                       |__/                         " -ForegroundColor Yellow
+    Write-Host "`n"
+
+		Write-Host "--- MCL Justice Department Activity Checker ---" -ForegroundColor Cyan
+    Write-Host "This tool is exclusively for members of the MCL Justice Department to investigate " -ForegroundColor White
+    Write-Host "player activity within the competitive server, MCL. It is designed to be " -ForegroundColor White
+    Write-Host "deployed **after** initial suspicion arises from observed gameplay or submitted clips, " -ForegroundColor White
+    Write-Host "serving as a forensic utility to gather concrete evidence of unauthorized software, " -ForegroundColor White
+    Write-Host "exploits, or modifications used to gain an unfair advantage. And its only to be used under **reasonable suspicion**" -ForegroundColor White
+    Write-Host "`n"
+    Write-Host "Please note: This is primarily an **activity checker** and provides a quick, simple " -ForegroundColor White
+    Write-Host "way to identify common cheat indicators. It is **not as comprehensive or reliable " -ForegroundColor White
+    Write-Host "as a full PC check**, which delves deeper into system forensics, memory analysis, " -ForegroundColor White
+    Write-Host "and kernel-level activity. This tool serves as an initial, easy-to-use filter, " -ForegroundColor White
+    Write-Host "but does not replace the thoroughness of a dedicated, in-depth PC inspection." -ForegroundColor White
+    Write-Host "`n"
+    Write-Host "Specifically, this checker performs a deep system analysis to identify digital " -ForegroundColor White
+    Write-Host "fingerprints associated with common Roblox cheats and exploit tools, including:" -ForegroundColor White
+    Write-Host "  " -NoNewline
+    Write-Host "• File System Scan:" -ForegroundColor Yellow -NoNewline
+    Write-Host " Locates suspicious executable files, DLLs, or archives (like '.exe', '.zip', '.rar') " -ForegroundColor White
+    Write-Host "    often associated with Roblox exploits or cheat injection." -ForegroundColor White
+    Write-Host "  " -NoNewline
+    Write-Host "• Registry Analysis (MuiCache, Run Keys, UserAssist):" -ForegroundColor Yellow -NoNewline
+    Write-Host " Uncovers evidence of previously executed exploit clients, " -ForegroundColor White
+    Write-Host "    programs set to auto-start, or traces in user activity logs that indicate " -ForegroundColor White
+    Write-Host "    the presence or past use of cheating software." -ForegroundColor White
+    Write-Host "  " -NoNewline
+    Write-Host "• Prefetch Data Examination:" -ForegroundColor Yellow -NoNewline
+    Write-Host " Scans Windows Prefetch files (records of launched applications) to reveal " -ForegroundColor White
+    Write-Host "    historical execution of suspicious Roblox-related exploit or cheat programs." -ForegroundColor White
+    Write-Host "  " -NoNewline
+    Write-Host "• Active Process & Network Connection Monitoring:" -ForegroundColor Yellow -NoNewline
+    Write-Host " Identifies currently running processes and their network activity that " -ForegroundColor White
+    Write-Host "    correspond to known Roblox exploit names or unusual connections, suggesting " -ForegroundColor White
+    Write-Host "    active cheating." -ForegroundColor White
+    Write-Host "  " -NoNewline
+    Write-Host "• Scheduled Tasks Inspection:" -ForegroundColor Yellow -NoNewline
+    Write-Host " Checks for covert scheduled tasks that could be utilized by cheats for " -ForegroundColor White
+    Write-Host "    persistence, auto-updates, or delayed execution." -ForegroundColor White
+    Write-Host "`n"
+    Write-Host "The objective is to provide the Justice Department with clear, actionable data to " -ForegroundColor White
+    Write-Host "support disciplinary decisions, ensuring a fair and competitive environment within MCL." -ForegroundColor White
+    Write-Host "`n"
+
+    $cpu = Get-WmiObject Win32_Processor | Select-Object -First 1
+
+    if ($cpu.Name) {
+        Write-Host "Detected CPU: $($cpu.Name)" -ForegroundColor Green
+        Write-Host "Your CPU looks good. Everything should load quickly." -ForegroundColor Green
+    } else {
+        Write-Host "Could not detect CPU information." -ForegroundColor Red
+        Write-Host "This process may take longer for you." -ForegroundColor Yellow
+    }
+    Write-Host "`n"
+
+    Write-Host "=== Discord Servers ==="
+    Write-Host "discord.gg/mcl"
+    Write-Host "discord.gg/rivalsleague"
+    Write-Host "discord.gg/eta"
+    Write-Host "discord.gg/etajd"
+    Write-Host "`n"
+
+    Write-Host "=== Credits ==="
+    Write-Host "Made by @.aw_"
+    Write-Host "`n"
+
+    Read-Host "Press Enter to Continue to start the scan"
+    Clear-Host
+
+    $suspiciousNames = @(
+        "aimmy", "aimmy.exe", "Atlanta", "Atlanta.exe", "Antagonist", "Antagonist.exe",
+        "ArceusX", "ArceusX.exe", "Assembly", "Assembly.exe", "Apple-Ware", "Apple-Ware.exe",
+        "Alysum", "Alysum.exe", "Aurora/Detour", "Aurora/Detour.zip", "autoexe", "autoexe.exe",
+        "Auxia", "Auxia.exe", "bootstrapper", "bootstrapper.exe",
+        "build", "build.zip", "build.rar", "Bytebreaker", "Bytebreaker.exe",
+        "celex", "celex.exe", "celery", "celery.exe", "Charm", "Charm.exe",
+        "clumsy", "clumsy.exe", "CodeX", "CodeX.exe", "cloudy", "cloudy.exe",
+        "Cryptic", "Cryptic.exe", "Deposit", "Deposit.exe",
+        "dx9", "dx9.exe", "dx9ware", "dx9ware.exe", "Evolve", "Evolve.exe",
+        "Ethic", "Ethic.exe", "Fluxus", "Fluxus.exe", "FusionHacks.zip",
+        "horizon", "horizon.exe", "Haze/Myst", "Haze/Myst.exe", "Havoc", "Havoc.exe",
+        "Howl", "Howl.exe", "Hydrogen", "Hydrogen.exe", "intellect", "intellect.exe",
+        "isabelle", "isabelle.exe", "JJSploit", "JJSploit.exe", "juju", "juju.exe",
+        "KRNL", "KRNL.exe", "Linora", "Linora.exe", "loader", "loader.exe",
+        "Macsploit", "Macsploit.exe", "matrix", "matrix.exe", "Matrix Hub", "Matrix Hub.exe",
+        "matcha", "matcha.exe", "Melatonin", "Melatonin.exe", "Mirage", "Mirage.exe",
+        "monkeyaim", "monkeyaim.exe", "MantiWPF", "MantiWPF.exe", "MystW.exe",
+        "Nezur", "Nezur.exe", "nezure", "nezure.exe", "Nihon", "Nihon.exe",
+        "olduimatrix", "olduimatrix.exe", "Photon", "Photon.exe",
+        "Potassium", "Potassium.exe", "Prynce", "Prynce.exe", "Quiet/Hoax", "Quiet/Hoax.exe",
+        "release", "release.zip", "ReveliX", "ReveliX.exe", "Ronin", "Ronin.exe",
+        "Ronix", "Ronix.exe", "Salad", "Salad.exe", "Severe", "Severe.exe",
+        "Seliware", "Seliware.exe", "Serena", "Serena.exe", "Serotonin", "Serotonin.exe",
+        "Siege", "Siege.exe", "Sirhurt", "Sirhurt.exe", "solara", "solara.exe",
+        "stellar", "stellar.exe", "Swift", "Swift.exe", "tupical", "tupical.exe",
+        "Thrax", "Thrax.exe", "Thunder Client", "Thunder Client.exe", "thunderaim", "thunderaim.exe",
+        "thunderclient", "thunderclient.exe", "Trident", "Trident.exe",
+        "triggerbot", "triggerbot.exe", "tsurugi", "tsurugi.exe", "Valex", "Valex.exe",
+        "VegaX", "VegaX.exe", "Vector", "Vector.exe", "Velocity", "Velocity.exe",
+        "Volcano", "Volcano.exe", "Wave", "Wave.exe", "Xeno", "Xeno.exe",
+        "XVI", "XVI.exe", "Yerba", "Yerba.exe", "Yeno", "Yeno.exe",
+        "Yuki", "Yuki.exe", "zarora", "zarora.exe", "Zenith", "Zenith.exe",
+        "Zorara", "Zorara.exe", "app.exe", "usermode", "loader.exe", "map.exe", ".vbs", "nigger.cpp",
+        "mingw.exe", "mingw", "WEF.PS1", "dimssecrets_1_1.bat"
+    )
+
+    $excludedExtensions = @(".svg", ".pyi", ".sh", ".ls", ".js", ".mp4", ".mp3", ".jpg", ".png", ".txt")
+
+    $foundFiles = [System.Collections.Generic.List[object]]::new()
+
+    function Test-SuspiciousName {
+        param (
+            [string]$NameToCheck,
+            [array]$SuspiciousNamesList
+        )
+        foreach ($suspName in $SuspiciousNamesList) {
+            if ($NameToCheck -eq $suspName) {
+                return $suspName
+            }
+        }
+        return $null
+    }
+
+    function Decode-Rot13 {
+        param([string]$InputString)
+        $output = ""
+        foreach ($char in $InputString.ToCharArray()) {
+            $ascii = [int]$char
+            if ($ascii -ge 65 -and $ascii -le 90) {
+                $ascii = (($ascii - 65 + 13) % 26) + 65
+            } elseif ($ascii -ge 97 -and $ascii -le 122) {
+                $ascii = (($ascii - 97 + 13) % 26) + 97
+            }
+            $output += [char]$ascii
+        }
+        return $output
+    }
+
+    Write-Host "`n-- Running File System Scan --`n" -ForegroundColor Blue
+    $fileSystemMatches = [System.Collections.Generic.List[object]]::new()
+    $allFiles = Get-ChildItem -Path "C:\" -Recurse -File -ErrorAction SilentlyContinue
+
+    foreach ($file in $allFiles) {
+        if ($excludedExtensions -contains $file.Extension) {
+            continue
+        }
+
+        $matchedName = Test-SuspiciousName -NameToCheck $file.Name -SuspiciousNamesList $suspiciousNames
+        if ($null -eq $matchedName) {
+            $matchedName = Test-SuspiciousName -NameToCheck $file.BaseName -SuspiciousNamesList $suspiciousNames
+        }
+
+        if ($null -ne $matchedName) {
+            $matchInfo = [PSCustomObject]@{
+                Source    = "File System"
+                Path      = $file.FullName
+                MatchedOn = $matchedName
+                Timestamp = $file.LastWriteTime
+            }
+            $fileSystemMatches.Add($matchInfo)
+        }
+    }
+    if ($fileSystemMatches.Count -gt 0) {
+        $foundFiles.AddRange($fileSystemMatches)
+        Write-Host "`n-- File System Scan: Suspicious files found! --`n" -ForegroundColor Red
+    } else {
+        Write-Host "`n-- File System Scan: No suspicious files detected. --`n" -ForegroundColor Green
+    }
+
+
+    Write-Host "`n-- Running MuiCache Registry Scan --`n" -ForegroundColor Yellow
+    $muiCacheMatches = [System.Collections.Generic.List[object]]::new()
+    $registryPath = "HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
+
+    try {
+        $properties = Get-ItemProperty -LiteralPath $registryPath -ErrorAction Stop
+
+        foreach ($property in $properties.PSObject.Properties) {
+            if ($property.Name -notin 'PSPath', 'PSParentPath', 'PSChildName', 'PSDrive', 'PSProvider', '(default)') {
+                $registryEntryName = $property.Name
+                $executablePath = $registryEntryName
+
+                if ($executablePath.Contains(".exe.Friendly Name")) {
+                    $executablePath = $executablePath.Substring(0, $executablePath.IndexOf(".exe.Friendly Name") + 4)
+                } elseif ($executablePath.Contains(".exe @")) {
+                    $executablePath = $executablePath.Substring(0, $executablePath.IndexOf(".exe @") + 4)
+                }
+
+                if ($executablePath -match "^(.*?\.(?:exe|zip|rar))(?:\.\d+)?(?: @.*)?$") {
+                    $executablePath = $Matches[1]
+                }
+
+                $fileName = [System.IO.Path]::GetFileName($executablePath)
+                $baseName = [System.IO.Path]::GetFileNameWithoutExtension($executablePath)
+
+                $matchedName = Test-SuspiciousName -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+                if ($null -eq $matchedName) {
+                    $matchedName = Test-SuspiciousName -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+                }
+
+                if ($null -ne $matchedName) {
+                    $matchInfo = [PSCustomObject]@{
+                        Source    = "MuiCache Registry"
+                        Path      = $executablePath
+                        MatchedOn = $matchedName
+                        Timestamp = $null
+                    }
+                    $muiCacheMatches.Add($matchInfo)
+                }
+            }
+        }
+    } catch {
+        Write-Warning "An error occurred during MuiCache registry scan. Could not access the registry path: $($registryPath). Error: $($_.Exception.Message)"
+        Write-Warning "Ensure the path is correct and you have appropriate permissions."
+    }
+    if ($muiCacheMatches.Count -gt 0) {
+        $foundFiles.AddRange($muiCacheMatches)
+        Write-Host "`n-- MuiCache Registry Scan: Suspicious entries found! --`n" -ForegroundColor Red
+    } else {
+        Write-Host "`n-- MuiCache Registry Scan: No suspicious entries detected. --`n" -ForegroundColor Green
+    }
+
+
+    Write-Host "`n-- Running Prefetch Scan --`n" -ForegroundColor Yellow
+    $prefetchMatches = [System.Collections.Generic.List[object]]::new()
+    $prefetchPath = "$env:SystemRoot\Prefetch"
+
+    if (Test-Path $prefetchPath) {
+        $prefetchFiles = Get-ChildItem -Path $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue
+
+        foreach ($pfFile in $prefetchFiles) {
+            try {
+                $pfFileName = $pfFile.BaseName
+                $appName = $pfFileName.Split('-')[0]
+
+                $appNameWithExe = "$appName.exe"
+
+                $matchedName = Test-SuspiciousName -NameToCheck $appNameWithExe -SuspiciousNamesList $suspiciousNames
+                if ($null -eq $matchedName) {
+                    $matchedName = Test-SuspiciousName -NameToCheck $appName -SuspiciousNamesList $suspiciousNames
+                }
+
+                if ($null -ne $matchedName) {
+                    $matchInfo = [PSCustomObject]@{
+                        Source    = "Prefetch"
+                        Path      = $pfFile.FullName
+                        MatchedOn = $matchedName
+                        Timestamp = $pfFile.LastWriteTime
+                    }
+                    $prefetchMatches.Add($matchInfo)
+                }
+            } catch {
+                Write-Warning "Could not process prefetch file $($pfFile.Name). Error: $($_.Exception.Message)"
+            }
+        }
+    } else {
+        Write-Warning "Prefetch directory not found at $($prefetchPath)."
+    }
+    if ($prefetchMatches.Count -gt 0) {
+        $foundFiles.AddRange($prefetchMatches)
+        Write-Host "`n-- Prefetch Scan: Suspicious entries found! --`n" -ForegroundColor Red
+    } else {
+        Write-Host "`n-- Prefetch Scan: No suspicious entries detected. --`n" -ForegroundColor Green
+    }
+
+
+    Write-Host "`n-- Running Processes Scan --`n" -ForegroundColor Yellow
+    $processMatches = [System.Collections.Generic.List[object]]::new()
+    try {
+        $runningProcesses = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path }
+
+        foreach ($process in $runningProcesses) {
+            $processName = $process.ProcessName
+            $processPath = $process.Path
+
+            $fileName = [System.IO.Path]::GetFileName($processPath)
+            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($processPath)
+
+            $matchedName = Test-SuspiciousName -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+            if ($null -eq $matchedName) {
+                $matchedName = Test-SuspiciousName -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+            }
+            if ($null -eq $matchedName) {
+                $matchedName = Test-SuspiciousName -NameToCheck $processName -SuspiciousNamesList $suspiciousNames
+            }
+
+            if ($null -ne $matchedName) {
+                $matchInfo = [PSCustomObject]@{
+                    Source    = "Running Process"
+                    Path      = $processPath
+                    MatchedOn = $matchedName
+                    PID       = $process.Id
+                    Timestamp = $process.StartTime
+                }
+                $processMatches.Add($matchInfo)
+            }
+        }
+    } catch {
+        Write-Warning "An error occurred during running processes scan. Error: $($_.Exception.Message)"
+        Write-Warning "Ensure you have appropriate permissions to list all processes."
+    }
+    if ($processMatches.Count -gt 0) {
+        $foundFiles.AddRange($processMatches)
+        Write-Host "`n-- Running Processes Scan: Suspicious processes found! --`n" -ForegroundColor Red
+    } else {
+        Write-Host "`n-- Running Processes Scan: No suspicious processes detected. --`n" -ForegroundColor Green
+    }
+
+
+    Write-Host "`n-- Running Startup Locations Scan --`n" -ForegroundColor Yellow
+    $startupMatches = [System.Collections.Generic.List[object]]::new()
+    $runKeys = @(
+        "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+        "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
+    )
+
+    foreach ($keyPath in $runKeys) {
+        try {
+            $properties = Get-ItemProperty -LiteralPath $keyPath -ErrorAction SilentlyContinue
+
+            foreach ($property in $properties.PSObject.Properties) {
+                if ($property.Name -notin 'PSPath', 'PSParentPath', 'PSChildName', 'PSDrive', 'PSProvider', '(default)') {
+                    $value = $property.Value
+                    if ($value -match '\"(.*?)(?:\.exe|\.zip|\.rar|\.bat|\.ps1)\"|([a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*(?:[^\\/:*?"<>|\r\n]*?)(?:\.exe|\.zip|\.rar|\.bat|\.ps1))') {
+                        if ($Matches[1] -ne "") {
+                            $startupPath = $Matches[1]
+                        } else {
+                            $startupPath = $Matches[2]
+                        }
+
+                        $fileName = [System.IO.Path]::GetFileName($startupPath)
+                        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($startupPath)
+
+                        $matchedName = Test-SuspiciousName -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+                        if ($null -eq $matchedName) {
+                            $matchedName = Test-SuspiciousName -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+                        }
+
+                        if ($null -ne $matchedName) {
+                            $matchInfo = [PSCustomObject]@{
+                                Source    = "Registry Startup Key ($keyPath)"
+                                Path      = $startupPath
+                                MatchedOn = $matchedName
+                                Timestamp = $null
+                            }
+                            $startupMatches.Add($matchInfo)
+                        }
+                    }
+                }
+            }
+        } catch {
+            Write-Warning "Could not scan registry key $($keyPath). Error: $($_.Exception.Message)"
+        }
+    }
+
+    $startupFolders = @(
+        "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup",
+        "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup"
+    )
+
+    foreach ($folder in $startupFolders) {
+        if (Test-Path $folder) {
+            $startupItems = Get-ChildItem -Path $folder -File -ErrorAction SilentlyContinue
+
+            foreach ($item in $startupItems) {
+                if ($excludedExtensions -contains $item.Extension) {
+                    continue
+                }
+
+                $matchedName = Test-SuspiciousName -NameToCheck $item.Name -SuspiciousNamesList $suspiciousNames
+                if ($null -eq $matchedName) {
+                    $matchedName = Test-SuspiciousName -NameToCheck $item.BaseName -SuspiciousNamesList $suspiciousNames
+                }
+
+                if ($null -ne $matchedName) {
+                    $matchInfo = [PSCustomObject]@{
+                        Source    = "Startup Folder ($folder)"
+                        Path      = $item.FullName
+                        MatchedOn = $matchedName
+                        Timestamp = $item.CreationTime
+                    }
+                    $startupMatches.Add($matchInfo)
+                }
+            }
+        } else {
+            Write-Warning "Startup folder not found: $($folder)."
+        }
+    }
+    if ($startupMatches.Count -gt 0) {
+        $foundFiles.AddRange($startupMatches)
+        Write-Host "`n-- Startup Locations Scan: Suspicious items found! --`n" -ForegroundColor Red
+    } else {
+        Write-Host "`n-- Startup Locations Scan: No suspicious items detected. --`n" -ForegroundColor Green
+    }
+
+
+    Write-Host "`n-- Running Scheduled Tasks Scan --`n" -ForegroundColor Yellow
+    $scheduledTaskMatches = [System.Collections.Generic.List[object]]::new()
+    try {
+        $scheduledTasks = Get-ScheduledTask -ErrorAction SilentlyContinue
+
+        foreach ($task in $scheduledTasks) {
+            $taskName = $task.TaskName
+            $matchedName = Test-SuspiciousName -NameToCheck $taskName -SuspiciousNamesList $suspiciousNames
+
+            if ($null -eq $matchedName) {
+                $taskActions = $task | Get-ScheduledTaskInfo | Select-Object -ExpandProperty Actions -ErrorAction SilentlyContinue
+                foreach ($action in $taskActions) {
+                    if ($action.ActionType -eq "Exec" -and $action.Executable) {
+                        $executable = $action.Executable
+                        $fileName = [System.IO.Path]::GetFileName($executable)
+                        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($executable)
+
+                        $matchedName = Test-SuspiciousName -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+                        if ($null -eq $matchedName) {
+                            $matchedName = Test-SuspiciousName -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+                        }
+                        if ($null -eq $matchedName -and $action.Arguments) {
+                            $arguments = $action.Arguments
+                            foreach ($argWord in ($arguments -split '\s+')) {
+                                $matchedName = Test-SuspiciousName -NameToCheck $argWord.Trim("`"") -SuspiciousNamesList $suspiciousNames
+                                if ($null -ne $matchedName) { break }
+                            }
+                        }
+                    }
+                    if ($null -ne $matchedName) { break }
+                }
+            }
+
+            if ($null -ne $matchedName) {
+                $matchInfo = [PSCustomObject]@{
+                    Source    = "Scheduled Task"
+                    Path      = $task.TaskPath + $task.TaskName
+                    MatchedOn = $matchedName
+                    State     = $task.State
+                    LastRun   = $task.LastRunTime
+                }
+                $scheduledTaskMatches.Add($matchInfo)
+            }
+        }
+    } catch {
+        Write-Warning "An error occurred during scheduled tasks scan. Error: $($_.Exception.Message)"
+        Write-Warning "Ensure the 'ScheduledTasks' module is available and you have appropriate permissions."
+    }
+    if ($scheduledTaskMatches.Count -gt 0) {
+        $foundFiles.AddRange($scheduledTaskMatches)
+        Write-Host "`n-- Scheduled Tasks Scan: Suspicious entries found! --`n" -ForegroundColor Red
+    } else {
+        Write-Host "`n-- Scheduled Tasks Scan: No suspicious entries detected. --`n" -ForegroundColor Green
+    }
+
+
+    Write-Host "`n-- Running Network Connections Scan --`n" -ForegroundColor Yellow
+    $networkConnectionMatches = [System.Collections.Generic.List[object]]::new()
+    try {
+        $activeConnections = Get-NetTCPConnection -ErrorAction SilentlyContinue
+
+        foreach ($conn in $activeConnections) {
+            if ($conn.OwningProcess -ne 0) {
+                try {
+                    $process = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+                    if ($process) {
+                        $processName = $process.ProcessName
+                        $processPath = $process.Path
+
+                        $fileName = [System.IO.Path]::GetFileName($processPath)
+                        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($processPath)
+
+                        $matchedName = Test-SuspiciousName -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+                        if ($null -eq $matchedName) {
+                            $matchedName = Test-SuspiciousName -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+                        }
+                        if ($null -eq $matchedName) {
+                            $matchedName = Test-SuspiciousName -NameToCheck $processName -SuspiciousNamesList $suspiciousNames
+                        }
+
+                        if ($null -ne $matchedName) {
+                            $matchInfo = [PSCustomObject]@{
+                                Source        = "Network Connection"
+                                ProcessPath   = $processPath
+                                MatchedOn     = $matchedName
+                                PID           = $conn.OwningProcess
+                                LocalAddress  = "$($conn.LocalAddress):$($conn.LocalPort)"
+                                RemoteAddress = "$($conn.RemoteAddress):$($conn.RemotePort)"
+                                State         = $conn.State
+                                CreationTime  = $conn.CreationTime
+                            }
+                            $networkConnectionMatches.Add($matchInfo)
+                        }
+                    }
+                } catch {
+                }
+            }
+        }
+    } catch {
+        Write-Warning "An error occurred during network connections scan. Error: $($_.Exception.Message)"
+        Write-Warning "Ensure the 'NetTCPIP' module is available and you have appropriate permissions."
+    }
+    if ($networkConnectionMatches.Count -gt 0) {
+        $foundFiles.AddRange($networkConnectionMatches)
+        Write-Host "`n-- Network Connections Scan: Suspicious connections found! --`n" -ForegroundColor Red
+    } else {
+        Write-Host "`n-- Network Connections Scan: No suspicious connections detected. --`n" -ForegroundColor Green
+    }
+
+
+    Write-Host "`n-- Running Recently Used Applications Scan --`n" -ForegroundColor Yellow
+    $userAssistMatches = [System.Collections.Generic.List[object]]::new()
+    $userAssistPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\UserAssist"
+
+    try {
+        $userAssistGuids = Get-ChildItem -Path $userAssistPath -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer }
+
+        foreach ($guidKey in $userAssistGuids) {
+            $countKeyPath = "$($guidKey.PSPath)\Count"
+            try {
+                $properties = Get-ItemProperty -LiteralPath $countKeyPath -ErrorAction Stop
+
+                foreach ($property in $properties.PSObject.Properties) {
+                    if ($property.Name -notin 'PSPath', 'PSParentPath', 'PSChildName', 'PSDrive', 'PSProvider', '(default)') {
+                        $encodedPath = $property.Name
+                        $decodedPath = Decode-Rot13 -InputString $encodedPath
+
+                        $fileName = [System.IO.Path]::GetFileName($decodedPath)
+                        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($decodedPath)
+
+                        $matchedName = Test-SuspiciousName -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+                        if ($null -eq $matchedName) {
+                            $matchedName = Test-SuspiciousName -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+                        }
+
+                        if ($null -ne $matchedName) {
+                            $binaryData = $property.Value
+                            $lastRunTime = $null
+                            $timeAgo = "N/A"
+
+                            if ($binaryData -and $binaryData.Length -ge 16) {
+                                try {
+                                    $fileTimeBytes = $binaryData[8..15]
+                                    $fileTimeLong = [System.BitConverter]::ToInt64($fileTimeBytes, 0)
+                                    $lastRunTime = [System.DateTime]::FromFileTimeUtc($fileTimeLong).ToLocalTime()
+
+                                    $timeDifference = (Get-Date) - $lastRunTime
+                                    if ($timeDifference.TotalDays -ge 1) {
+                                        $timeAgo = "{0:0} days, {1:0} hours ago" -f $timeDifference.TotalDays, $timeDifference.Hours
+                                    } elseif ($timeDifference.TotalHours -ge 1) {
+                                        $timeAgo = "{0:0} hours, {1:0} minutes ago" -f $timeDifference.TotalHours, $timeDifference.Minutes
+                                    } elseif ($timeDifference.TotalMinutes -ge 1) {
+                                        $timeAgo = "{0:0} minutes, {1:0} seconds ago" -f $timeDifference.TotalMinutes, $timeDifference.Seconds
+                                    } else {
+                                        $timeAgo = "{0:0} seconds ago" -f $timeDifference.TotalSeconds
+                                    }
+                                } catch {
+                                    Write-Warning "Failed to parse timestamp for UserAssist entry $($decodedPath). Error: $($_.Exception.Message)"
+                                }
+                            }
+
+                            $matchInfo = [PSCustomObject]@{
+                                Source    = "Recently Used App (UserAssist)"
+                                Path      = $decodedPath
+                                MatchedOn = $matchedName
+                                Timestamp = $lastRunTime
+                                TimeAgo   = $timeAgo
+                            }
+                            $userAssistMatches.Add($matchInfo)
+                        }
+                    }
+                }
+            } catch {
+                Write-Warning "Could not scan UserAssist subkey $($guidKey.Name). Error: $($_.Exception.Message)"
+            }
+        }
+    } catch {
+        Write-Warning "An error occurred during Recently Used Applications scan. Could not access UserAssist registry path. Error: $($_.Exception.Message)"
+        Write-Warning "Ensure you have appropriate permissions."
+    }
+    if ($userAssistMatches.Count -gt 0) {
+        $foundFiles.AddRange($userAssistMatches)
+        Write-Host "`n-- Recently Used Applications Scan: Suspicious applications found! --`n" -ForegroundColor Red
+    } else {
+        Write-Host "`n-- Recently Used Applications Scan: No suspicious applications detected. --`n" -ForegroundColor Green
+    }
+
+    Read-Host "Press Enter to view scan summary..."
+    Clear-Host
+
+    if ($foundFiles.Count -gt 0) {
+        Write-Host "`n--- Scan Summary ---`n" -ForegroundColor Blue
+        $groupedFiles = $foundFiles | Group-Object -Property MatchedOn
+
+        Write-Host "The scan found files/entries matching the following names:" -ForegroundColor Yellow
+        foreach ($group in $groupedFiles) {
+            Write-Host "- $($group.Name)" -ForegroundColor Red
+            foreach ($file in $group.Group) {
+                Write-Host "  Source: $($file.Source)"
+                Write-Host "  Path: $($file.Path)" -ForegroundColor DarkYellow
+                if ($file | Get-Member -Name "PID") { Write-Host "  PID: $($file.PID)" }
+                if ($file | Get-Member -Name "State") { Write-Host "  State: $($file.State)" }
+                if ($file | Get-Member -Name "LocalAddress") { Write-Host "  Local Address: $($file.LocalAddress)" }
+                if ($file | Get-Member -Name "RemoteAddress") { Write-Host "  Remote Address: $($file.RemoteAddress)" }
+
+                if ($file.Timestamp -ne $null) {
+                    Write-Host "  Timestamp: $($file.Timestamp)"
+                } else {
+                    Write-Host "  Timestamp: N/A"
+                }
+
+                if ($file | Get-Member -Name "TimeAgo") {
+                    Write-Host "  Time Ago: $($file.TimeAgo)"
+                }
+
+                if ($file | Get-Member -Name "LastRun") {
+                    if ($file.LastRun -ne $null) {
+                        Write-Host "  Last Run: $($file.LastRun)"
+                    } else {
+                        Write-Host "  Last Run: N/A"
+                    }
+                }
+                Write-Host "" 
+            }
+        }
+    } else {
+        Write-Host "`n--- Scan Summary ---`n" -ForegroundColor Blue
+        Write-Host "No suspicious files or entries were detected during the scan." -ForegroundColor Green
+    }
+
+    Write-Host "`nScan complete. Press Enter to exit." -ForegroundColor Green
+    Read-Host
+}
+
+
+Find-SuspiciousFiles
+
+# Script Fully Made By Ichiro (".aw_") dm for inquiries 
