@@ -1,0 +1,1074 @@
+# Script fully made by Ichiro (".aw_") with some skided mcl t1 rules
+
+$IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+if (-not $IsAdmin) {
+    Write-Host "`n[WARNING] This script is NOT running with Administrator privileges." -ForegroundColor Red
+    Write-Host "[ACTION] Please right-click PowerShell and then select 'Run as Administrator.'" -ForegroundColor Yellow
+    Write-Host ""
+    Pause
+    exit 1
+}
+
+function Write-ColoredLine {
+    param (
+        [string]$Text,
+        [ConsoleColor]$Color = 'White'
+    )
+    $oldColor = $Host.UI.RawUI.ForegroundColor
+    $Host.UI.RawUI.ForegroundColor = $Color
+    Write-Host $Text
+    $Host.UI.RawUI.ForegroundColor = $oldColor
+}
+
+function Wait-ForEnter {
+    param(
+        [string]$Message = "Press Enter to Continue"
+    )
+    Start-Sleep -Seconds 1
+    Write-ColoredLine $Message Yellow
+    while ($true) {
+        if ([System.Console]::KeyAvailable) {
+            $key = [System.Console]::ReadKey($true)
+            if ($key.Key -eq "Enter") { break }
+        }
+        Start-Sleep -Milliseconds 100
+    }
+}
+	
+Clear-Host
+Write-Host "  ___ _____ _     ___ ___ ___   ___ _   _ _    ___ ___ " -ForegroundColor Yellow
+Write-Host " | __|_   _/_\   | _ \ __/ __| | _ \ | | | |  | __/ __|" -ForegroundColor Yellow
+Write-Host " | _|  | |/ _ \  |   / _| (__  |   / |_| | |__| _|\__ \ " -ForegroundColor Yellow
+Write-Host " |___| |_/_/ \_\ |_|_\___\___| |_|_\\___/|____|___|___/" -ForegroundColor Yellow
+Write-ColoredLine "" White
+Write-ColoredLine "=== MCL T1 Recording Policy & System Check Tool ===" Cyan
+Write-ColoredLine "" White
+
+Write-ColoredLine "This tool checks that your system follows MCL's recording policy." White
+Write-ColoredLine "It looks for unauthorized software, confirms your setup is clean," White
+Write-ColoredLine "and ensures everything needed for recording is running properly." White
+Write-ColoredLine "" White
+
+Write-ColoredLine "To pass, you need to complete all 3 steps without issues." Yellow
+Write-ColoredLine "The tool will:" White
+Write-ColoredLine " • Download and extract required files to: C:\ToolsETA" White
+Write-ColoredLine " • Perform 3 checks:" White
+Write-ColoredLine "     1. System Integrity" White
+Write-ColoredLine "     2. Cheat & File Scan" White
+Write-ColoredLine "     3. Process Explorer Check" White
+Write-ColoredLine "" White
+
+Write-ColoredLine "Make sure to follow the instructions on each step carefully." White
+Write-ColoredLine "This tool must complete successfully for you to be considered valid." Yellow
+Write-ColoredLine "" White
+
+Write-Host ""
+$cpu = Get-WmiObject Win32_Processor | Select-Object -First 1
+
+if ($cpu.NumberOfCores -ge 4 -and $cpu.MaxClockSpeed -ge 2500) {
+    Write-ColoredLine "Detected CPU: $($cpu.Name)" Green
+    Write-ColoredLine "Your CPU looks good. Everything should load quickly." Green
+} else {
+    Write-ColoredLine "Detected CPU: $($cpu.Name)" Red
+    Write-ColoredLine "Your CPU isn't that strong. This process may take longer for you." Yellow
+}
+Write-ColoredLine "" White
+Write-ColoredLine "=== Discord Servers ===" Yellow
+Write-ColoredLine "discord.gg/mcl" White
+Write-ColoredLine "discord.gg/rivalsleague" White
+Write-ColoredLine "discord.gg/eta" White
+Write-ColoredLine "discord.gg/etajd" White
+Write-ColoredLine "discord.gg/9SSrbBnqC4" White
+Write-ColoredLine "" White
+Write-ColoredLine "=== Credits ===" Yellow
+Write-ColoredLine "Made by @ravenader1" White
+Write-ColoredLine "Made by @cyberthreats" White
+Write-ColoredLine "Made by @.aw_" White
+Write-Host ""
+Wait-ForEnter -Message "Press Enter to Continue"
+Clear-Host
+
+# ====== STEP 1: SYSTEM CHECK ======
+
+Write-ColoredLine "Step 1 of 3: SYSTEM Check" Cyan
+Write-ColoredLine "INSTRUCTION: Reach 100% success" Yellow
+
+Write-Host ""
+
+function Show-LoadingBar {
+    for ($i = 0; $i -le 10; $i++) {
+        $percent = $i * 10
+        $bar = "#" * $i + "-" * (10 - $i)
+        Write-Host -NoNewline "`rProgress: [ $bar ] $percent% " -ForegroundColor Blue
+        Start-Sleep -Milliseconds 200
+    }
+    Write-Host ""
+    Write-Host ""
+}
+
+Show-LoadingBar
+
+$exclusionsOutput = @()
+$defenderOutput = @()
+$modulesOutput = @()
+$windowsOutput = @()
+$memoryIntegrityOutput = @()
+$threatsOutput = @()
+$powershellSigOutput = @()
+
+$defaultModules = @(
+    "Microsoft.PowerShell.Archive", "Microsoft.PowerShell.Diagnostics", "Microsoft.PowerShell.Host",
+    "Microsoft.PowerShell.LocalAccounts", "Microsoft.PowerShell.Management", "Microsoft.PowerShell.Security",
+    "Microsoft.PowerShell.Utility", "PackageManagement", "PowerShellGet", "PSReadLine", "Pester", "ThreadJob"
+)
+
+$protectedModule = "Microsoft.PowerShell.Operation.Validation"
+$modulesPath = "C:\Program Files\WindowsPowerShell\Modules"
+$deletedAny = $false
+$protectedFilePath = "$modulesPath\$protectedModule\1.0.1\Diagnostics\Comprehensive\Comprehensive.Tests.ps1"
+$expectedHash = "99B7CBE4325BA089DD9440A202B9E35D9E6F134A46312F3F1E93E71F23C8DAE3"
+
+Get-ChildItem $modulesPath -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer } | ForEach-Object {
+    $moduleName = $_.Name
+    $modulePath = $_.FullName
+    $isDefault = $defaultModules -contains $moduleName
+    $isProtected = $moduleName -eq $protectedModule
+    $files = Get-ChildItem $modulePath -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer }
+    $unauthorizedFiles = @()
+
+    foreach ($file in $files) {
+        $sig = Get-AuthenticodeSignature $file.FullName
+        if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch "Microsoft") {
+            $unauthorizedFiles += $file
+        }
+    }
+
+    if (-not $isDefault -and -not $isProtected) {
+        foreach ($file in $files) { try { $file.Attributes = 'Normal' } catch {} }
+        try {
+            Remove-Item $modulePath -Recurse -Force -ErrorAction Stop
+            $modulesOutput += "FAILURE: Removed unauthorized module: $moduleName"
+            $deletedAny = $true
+        } catch {
+            $modulesOutput += "WARNING: Could not delete module '$moduleName'"
+        }
+    }
+    elseif ($isProtected) {
+        if ($unauthorizedFiles.Count -eq 0) {
+            $modulesOutput += "SUCCESS: Protected module '$moduleName' verified."
+        } else {
+            foreach ($file in $unauthorizedFiles) {
+                if ($file.FullName -ieq $protectedFilePath) {
+                    try {
+                        $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
+                        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+                        $actual = $sha256.ComputeHash($bytes)
+                        $hash = ([BitConverter]::ToString($actual)).Replace("-", "")
+                        if ($hash -ne $expectedHash) {
+                            $modulesOutput += "WARNING: Protected file altered: '$($file.FullName)'"
+                        }
+                    } catch {}
+                }
+            }
+            $modulesOutput += "SUCCESS: Protected module intact." # Script fully made by Ichiro (".aw_") with some skided mcl t1 rules
+        }
+    }
+    else {
+        foreach ($file in $unauthorizedFiles) {
+            try {
+                $file.Attributes = 'Normal'
+                Remove-Item $file.FullName -Force -ErrorAction Stop
+                $modulesOutput += "FAILURE: Removed unauthorized file: '$($file.FullName)'"
+                $deletedAny = $true
+            } catch {
+                $modulesOutput += "WARNING: Could not delete file '$($file.FullName)'"
+            }
+        }
+        if ($unauthorizedFiles.Count -eq 0) {
+            $modulesOutput += "SUCCESS: Module '$moduleName' passed signature check."
+        }
+    }
+}
+
+Get-ChildItem $modulesPath -Force -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer } | ForEach-Object {
+    $sig = Get-AuthenticodeSignature $_.FullName
+    if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch "Microsoft") {
+        try {
+            Remove-Item $_.FullName -Force
+            $modulesOutput += "FAILURE: Removed unsigned file: '$($_.FullName)'"
+            $deletedAny = $true
+        } catch {
+            $modulesOutput += "WARNING: Could not delete root file '$($_.FullName)'"
+        }
+    } else {
+        $modulesOutput += "SUCCESS: Root file '$($_.Name)' is signed."
+    }
+}
+
+if (-not $deletedAny) {
+    $modulesOutput += "SUCCESS: No unauthorized modules/files found."
+}
+
+try {
+} catch {
+    $windowsOutput += "FAILURE: OS check failed."
+}
+
+try {
+    $regPath = "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
+    $enabled = Get-ItemPropertyValue -Path $regPath -Name "Enabled" -ErrorAction Stop
+    $memoryIntegrityOutput += "SUCCESS: Memory Integrity supported."
+    if ($enabled -eq 1) {
+        $memoryIntegrityOutput += "SUCCESS: Memory Integrity is ON."
+    } else {
+        $memoryIntegrityOutput += "FAILURE: Memory Integrity is OFF."
+    }
+} catch {
+    $memoryIntegrityOutput += "FAILURE: Memory Integrity not supported or inaccessible."
+}
+
+try {
+    $defender = Get-MpComputerStatus
+    if ($defender.AMServiceEnabled) {
+        if (-not $defender.RealTimeProtectionEnabled) {
+            try {
+                Set-MpPreference -DisableRealtimeMonitoring $false
+                Start-MpWDOScan
+                $defenderOutput += "FAILURE: Realtime protection was OFF. Enabling..."
+            } catch {
+                $defenderOutput += "WARNING: Could not re-enable Defender."
+            }
+        } else {
+            $defenderOutput += "SUCCESS: Realtime protection is ON."
+        }
+    } else {
+        $defenderOutput += "FAILURE: Defender is not running."
+    }
+} catch {
+    $defenderOutput += "WARNING: Defender status unavailable."
+}
+
+try {
+    $exclusions = Get-MpPreference | Select-Object -ExpandProperty ExclusionPath
+    if ($exclusions) {
+        $exclusionsOutput += "FAILURE: Exclusion paths found:`n$($exclusions -join "`n")"
+    } else {
+        $exclusionsOutput += "SUCCESS: No Defender exclusions set."
+    }
+} catch {
+    $exclusionsOutput += "WARNING: Could not check exclusions."
+}
+
+try {
+    $threats = Get-MpThreat | Where-Object { $_.Status -eq "Active" }
+    if ($threats) {
+        foreach ($t in $threats) {
+            $threatsOutput += "FAILURE: $($t.ThreatName) | $($t.Resources)"
+        }
+    } else {
+        $threatsOutput += "SUCCESS: No active threats."
+    }
+} catch {
+    $threatsOutput += "WARNING: Threat scan failed."
+}
+
+try {
+    $psPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    $sig = Get-AuthenticodeSignature -FilePath $psPath
+    if ($sig.Status -eq 'Valid' -and $sig.SignerCertificate.Subject -like '*Microsoft Windows*') {
+        $powershellSigOutput += "SUCCESS: PowerShell is signed and valid."
+    } else {
+        $powershellSigOutput += "FAILURE: PowerShell binary signature invalid."
+    }
+} catch {
+    $powershellSigOutput += "WARNING: Could not verify PowerShell binary."
+}
+
+function Write-Section {
+    param([string]$Title, [string[]]$Lines)
+    Write-Host "--- $Title ---" -ForegroundColor White
+    foreach ($line in $Lines) {
+        if ($line -match "^SUCCESS") { Write-Host $line -ForegroundColor Green }
+        elseif ($line -match "^FAILURE") { Write-Host $line -ForegroundColor Red }
+        elseif ($line -match "^WARNING") { Write-Host $line -ForegroundColor Yellow }
+        else { Write-Host $line -ForegroundColor White }
+    }
+}
+
+Write-Section "Files + Modules" $modulesOutput
+Write-Section "Memory Integrity" $memoryIntegrityOutput
+Write-Section "Windows Defender" $defenderOutput
+Write-Section "Exclusions" $exclusionsOutput
+Write-Section "Threats" $threatsOutput
+Write-Section "Binary Sig" $powershellSigOutput
+
+$allResults = $modulesOutput + $windowsOutput + $memoryIntegrityOutput + $defenderOutput + $exclusionsOutput + $threatsOutput + $powershellSigOutput
+$total = ($allResults | Where-Object { $_ -match '^(SUCCESS|FAILURE|WARNING)' }).Count
+$success = ($allResults | Where-Object { $_ -match '^SUCCESS' }).Count
+$rate = if ($total -gt 0) { [math]::Round(($success / $total) * 100, 0) } else { 0 }
+$rateColor = if ($rate -eq 100) { "Green" } else { "Red" }
+
+Write-Host ""
+Write-Host ("Success Rate: $rate% ($success / $total)") -ForegroundColor $rateColor
+
+Wait-ForEnter -Message "Press Enter to Continue"
+Clear-Host
+
+
+function Find-SuspiciousFilesInternal {
+    
+    function Test-SuspiciousNameInternal {
+        param (
+            [string]$NameToCheck,
+            [array]$SuspiciousNamesList
+        )
+        foreach ($suspName in $SuspiciousNamesList) {
+            if ($NameToCheck -eq $suspName) {
+                return $suspName
+            }
+        }
+        return $null
+    }
+
+    function Decode-Rot13Internal {
+        param([string]$InputString)
+        $output = ""
+        foreach ($char in $InputString.ToCharArray()) {
+            $ascii = [int]$char
+            if ($ascii -ge 65 -and $ascii -le 90) {
+                $ascii = (($ascii - 65 + 13) % 26) + 65
+            } elseif ($ascii -ge 97 -and $ascii -le 122) {
+                $ascii = (($ascii - 97 + 13) % 26) + 97
+            }
+            $output += [char]$ascii
+        }
+        return $output
+    }
+
+    $suspiciousNames = @(
+        "aimmy", "aimmy.exe", "Atlanta", "Atlanta.exe", "Antagonist", "Antagonist.exe",
+        "ArceusX", "ArceusX.exe", "Assembly", "Assembly.exe", "Apple-Ware", "Apple-Ware.exe",
+        "Alysum", "Alysum.exe", "Aurora/Detour", "Aurora/Detour.zip", "autoexe", "autoexe.exe",
+        "Auxia", "Auxia.exe", "bootstrapper", "bootstrapper.exe",
+        "build", "build.zip", "build.rar", "Bytebreaker", "Bytebreaker.exe",
+        "celex", "celex.exe", "celery", "celery.exe", "Charm", "Charm.exe",
+        "clumsy", "clumsy.exe", "CodeX", "CodeX.exe", "cloudy", "cloudy.exe",
+        "Cryptic", "Cryptic.exe", "Deposit", "Deposit.exe",
+        "dx9", "dx9.exe", "dx9ware", "dx9ware.exe", "Evolve", "Evolve.exe",
+        "Ethic", "Ethic.exe", "Fluxus", "Fluxus.exe", "FusionHacks.zip",
+        "horizon", "horizon.exe", "Haze/Myst", "Haze/Myst.exe", "Havoc", "Havoc.exe",
+        "Howl", "Howl.exe", "Hydrogen", "Hydrogen.exe", "intellect", "intellect.exe",
+        "isabelle", "isabelle.exe", "JJSploit", "JJSploit.exe", "juju", "juju.exe",
+        "KRNL", "KRNL.exe", "Linora", "Linora.exe", "loader", "loader.exe",
+        "Macsploit", "Macsploit.exe", "matrix", "matrix.exe", "Matrix Hub", "Matrix Hub.exe",
+        "matcha", "matcha.exe", "Melatonin", "Melatonin.exe", "Mirage", "Mirage.exe",
+        "monkeyaim", "monkeyaim.exe", "MantiWPF", "MantiWPF.exe", "MystW.exe",
+        "Nezur", "Nezur.exe", "nezure", "nezure.exe", "Nihon", "Nihon.exe",
+        "olduimatrix", "olduimatrix.exe", "Photon", "Photon.exe",
+        "Potassium", "Potassium.exe", "Prynce", "Prynce.exe", "Quiet/Hoax", "Quiet/Hoax.exe",
+        "release", "release.zip", "ReveliX", "ReveliX.exe", "Ronin", "Ronin.exe",
+        "Ronix", "Ronix.exe", "Salad", "Salad.exe", "Severe", "Severe.exe",
+        "Seliware", "Seliware.exe", "Serena", "Serena.exe", "Serotonin", "Serotonin.exe",
+        "Siege", "Siege.exe", "Sirhurt", "Sirhurt.exe", "solara", "solara.exe",
+        "stellar", "stellar.exe", "Swift", "Swift.exe", "tupical", "tupical.exe",
+        "Thrax", "Thrax.exe", "Thunder Client", "Thunder Client.exe", "thunderaim", "thunderaim.exe",
+        "thunderclient", "thunderclient.exe", "Trident", "Trident.exe",
+        "triggerbot", "triggerbot.exe", "tsurugi", "tsurugi.exe", "Valex", "Valex.exe",
+        "VegaX", "VegaX.exe", "Vector", "Vector.exe", "Velocity", "Velocity.exe",
+        "Volcano", "Volcano.exe", "Wave", "Wave.exe", "Xeno", "Xeno.exe",
+        "XVI", "XVI.exe", "Yerba", "Yerba.exe", "Yeno", "Yeno.exe",
+        "Yuki", "Yuki.exe", "zarora", "zarora.exe", "Zenith", "Zenith.exe",
+        "Zorara", "Zorara.exe", "app.exe", "usermode", "loader.exe", "map.exe", ".vbs", "nigger.cpp",
+        "mingw.exe", "mingw", "WEF.PS1", "dimssecrets_1_1.bat"
+    )
+
+    $excludedExtensions = @(".svg", ".pyi", ".sh", ".ls", ".js", ".mp4", ".mp3", ".jpg", ".png", ".txt")
+
+    $foundFiles = [System.Collections.Generic.List[object]]::new()
+    $scanOutput = [System.Collections.Generic.List[string]]::new()
+
+    Write-ColoredLine "`n-- Running File System Scan --`n" Blue
+	Write-ColoredLine "This might take a minute.." White
+    $fileSystemMatches = [System.Collections.Generic.List[object]]::new()
+    $allFiles = Get-ChildItem -Path "C:\" -Recurse -File -ErrorAction SilentlyContinue
+
+    foreach ($file in $allFiles) {
+        if ($excludedExtensions -contains $file.Extension) {
+            continue
+        }
+
+        $matchedName = Test-SuspiciousNameInternal -NameToCheck $file.Name -SuspiciousNamesList $suspiciousNames
+        if ($null -eq $matchedName) {
+            $matchedName = Test-SuspiciousNameInternal -NameToCheck $file.BaseName -SuspiciousNamesList $suspiciousNames
+        }
+
+        if ($null -ne $matchedName) {
+            $matchInfo = [PSCustomObject]@{
+                Source    = "File System"
+                Path      = $file.FullName
+                MatchedOn = $matchedName
+                Timestamp = $file.LastWriteTime
+            }
+            $fileSystemMatches.Add($matchInfo)
+        }
+    }
+    if ($fileSystemMatches.Count -gt 0) {
+        $foundFiles.AddRange($fileSystemMatches)
+        $scanOutput.Add("WARNING: File System Scan: Suspicious files found!")
+    } else {
+        $scanOutput.Add("SUCCESS: File System Scan: No suspicious files detected.")
+    }
+
+
+    Write-ColoredLine "`n-- Running MuiCache Registry Scan --`n" Yellow
+    $muiCacheMatches = [System.Collections.Generic.List[object]]::new()
+    $registryPath = "HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
+
+    try {
+        $properties = Get-ItemProperty -LiteralPath $registryPath -ErrorAction Stop
+
+        foreach ($property in $properties.PSObject.Properties) {
+            if ($property.Name -notin 'PSPath', 'PSParentPath', 'PSChildName', 'PSDrive', 'PSProvider', '(default)') {
+                $registryEntryName = $property.Name
+                $executablePath = $registryEntryName
+
+                if ($executablePath.Contains(".exe.Friendly Name")) {
+                    $executablePath = $executablePath.Substring(0, $executablePath.IndexOf(".exe.Friendly Name") + 4)
+                } elseif ($executablePath.Contains(".exe @")) {
+                    $executablePath = $executablePath.Substring(0, $executablePath.IndexOf(".exe @") + 4)
+                }
+
+                if ($executablePath -match "^(.*?\.(?:exe|zip|rar))(?:\.\d+)?(?: @.*)?$") {
+                    $executablePath = $Matches[1]
+                }
+
+                $fileName = [System.IO.Path]::GetFileName($executablePath)
+                $baseName = [System.IO.Path]::GetFileNameWithoutExtension($executablePath)
+
+                $matchedName = Test-SuspiciousNameInternal -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+                if ($null -eq $matchedName) {
+                    $matchedName = Test-SuspiciousNameInternal -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+                }
+
+                if ($null -ne $matchedName) {
+                    $matchInfo = [PSCustomObject]@{
+                        Source    = "MuiCache Registry"
+                        Path      = $executablePath
+                        MatchedOn = $matchedName
+                        Timestamp = $null
+                    }
+                    $muiCacheMatches.Add($matchInfo)
+                }
+            }
+        }
+    } catch {
+        $scanOutput.Add("WARNING: An error occurred during MuiCache registry scan. Error: $($_.Exception.Message)")
+        $scanOutput.Add("WARNING: Ensure the path is correct and you have appropriate permissions.")
+    }
+    if ($muiCacheMatches.Count -gt 0) {
+        $foundFiles.AddRange($muiCacheMatches)
+        $scanOutput.Add("FAILURE: MuiCache Registry Scan: Suspicious entries found!")
+    } else {
+        $scanOutput.Add("SUCCESS: MuiCache Registry Scan: No suspicious entries detected.")
+    }
+
+
+    Write-ColoredLine "`n-- Running Prefetch Scan --`n" Yellow
+    $prefetchMatches = [System.Collections.Generic.List[object]]::new()
+    $prefetchPath = "$env:SystemRoot\Prefetch"
+
+    if (Test-Path $prefetchPath) {
+        $prefetchFiles = Get-ChildItem -Path $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue
+
+        foreach ($pfFile in $prefetchFiles) {
+            try {
+                $pfFileName = $pfFile.BaseName
+                $appName = $pfFileName.Split('-')[0]
+
+                $appNameWithExe = "$appName.exe"
+
+                $matchedName = Test-SuspiciousNameInternal -NameToCheck $appNameWithExe -SuspiciousNamesList $suspiciousNames
+                if ($null -eq $matchedName) {
+                    $matchedName = Test-SuspiciousNameInternal -NameToCheck $appName -SuspiciousNamesList $suspiciousNames
+                }
+
+                if ($null -ne $matchedName) {
+                    $matchInfo = [PSCustomObject]@{
+                        Source    = "Prefetch"
+                        Path      = $pfFile.FullName
+                        MatchedOn = $matchedName
+                        Timestamp = $pfFile.LastWriteTime
+                    }
+                    $prefetchMatches.Add($matchInfo)
+                }
+            } catch {
+                $scanOutput.Add("WARNING: Could not process prefetch file $($pfFile.Name). Error: $($_.Exception.Message)")
+            }
+        }
+    } else {
+        $scanOutput.Add("WARNING: Prefetch directory not found at $($prefetchPath).")
+    }
+    if ($prefetchMatches.Count -gt 0) {
+        $foundFiles.AddRange($prefetchMatches)
+        $scanOutput.Add("WARNING: Prefetch Scan: Suspicious entries found!")
+    } else {
+        $scanOutput.Add("SUCCESS: Prefetch Scan: No suspicious entries detected.")
+    }
+
+
+    Write-ColoredLine "`n-- Running Processes Scan --`n" Yellow
+    $processMatches = [System.Collections.Generic.List[object]]::new()
+    try {
+        $runningProcesses = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path }
+
+        foreach ($process in $runningProcesses) {
+            $processName = $process.ProcessName
+            $processPath = $process.Path
+
+            $fileName = [System.IO.Path]::GetFileName($processPath)
+            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($processPath)
+
+            $matchedName = Test-SuspiciousNameInternal -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+            if ($null -eq $matchedName) {
+                $matchedName = Test-SuspiciousNameInternal -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+            }
+            if ($null -eq $matchedName) {
+                $matchedName = Test-SuspiciousNameInternal -NameToCheck $processName -SuspiciousNamesList $suspiciousNames
+            }
+
+            if ($null -ne $matchedName) {
+                $matchInfo = [PSCustomObject]@{
+                    Source    = "Running Process"
+                    Path      = $processPath
+                    MatchedOn = $matchedName
+                    PID       = $process.Id
+                    Timestamp = $process.StartTime
+                }
+                $processMatches.Add($matchInfo)
+            }
+        }
+    } catch {
+        $scanOutput.Add("WARNING: An error occurred during running processes scan. Error: $($_.Exception.Message)")
+        $scanOutput.Add("WARNING: Ensure you have appropriate permissions to list all processes.")
+    }
+    if ($processMatches.Count -gt 0) {
+        $foundFiles.AddRange($processMatches)
+        $scanOutput.Add("FAILURE: Running Processes Scan: Suspicious processes found!")
+    } else {
+        $scanOutput.Add("SUCCESS: Running Processes Scan: No suspicious processes detected.")
+    }
+
+
+    Write-ColoredLine "`n-- Running Startup Locations Scan --`n" Yellow
+    $startupMatches = [System.Collections.Generic.List[object]]::new()
+    $runKeys = @(
+        "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+        "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
+    )
+
+    foreach ($keyPath in $runKeys) {
+        try {
+            $properties = Get-ItemProperty -LiteralPath $keyPath -ErrorAction SilentlyContinue
+
+            foreach ($property in $properties.PSObject.Properties) {
+                if ($property.Name -notin 'PSPath', 'PSParentPath', 'PSChildName', 'PSDrive', 'PSProvider', '(default)') {
+                    $value = $property.Value
+                    if ($value -match '\"(.*?)(?:\.exe|\.zip|\.rar|\.bat|\.ps1)\"|([a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*(?:[^\\/:*?"<>|\r\n]*?)(?:\.exe|\.zip|\.rar|\.bat|\.ps1))') {
+                        if ($Matches[1] -ne "") {
+                            $startupPath = $Matches[1]
+                        } else {
+                            $startupPath = $Matches[2]
+                        }
+
+                        $fileName = [System.IO.Path]::GetFileName($startupPath)
+                        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($startupPath)
+
+                        $matchedName = Test-SuspiciousNameInternal -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+                        if ($null -eq $matchedName) {
+                            $matchedName = Test-SuspiciousNameInternal -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+                        }
+
+                        if ($null -ne $matchedName) {
+                            $matchInfo = [PSCustomObject]@{
+                                Source    = "Registry Startup Key ($keyPath)"
+                                Path      = $startupPath
+                                MatchedOn = $matchedName
+                                Timestamp = $null
+                            }
+                            $startupMatches.Add($matchInfo)
+                        }
+                    }
+                }
+            }
+        } catch {
+            $scanOutput.Add("WARNING: Could not scan registry key $($keyPath). Error: $($_.Exception.Message)")
+        }
+    }
+
+    $startupFolders = @(
+        "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup",
+        "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup"
+    )
+
+    foreach ($folder in $startupFolders) {
+        if (Test-Path $folder) {
+            $startupItems = Get-ChildItem -Path $folder -File -ErrorAction SilentlyContinue
+
+            foreach ($item in $startupItems) {
+                if ($excludedExtensions -contains $item.Extension) {
+                    continue
+                }
+
+                $matchedName = Test-SuspiciousNameInternal -NameToCheck $item.Name -SuspiciousNamesList $suspiciousNames
+                if ($null -eq $matchedName) {
+                    $matchedName = Test-SuspiciousNameInternal -NameToCheck $item.BaseName -SuspiciousNamesList $suspiciousNames
+                }
+
+                if ($null -ne $matchedName) {
+                    $matchInfo = [PSCustomObject]@{
+                        Source    = "Startup Folder ($folder)"
+                        Path      = $item.FullName
+                        MatchedOn = $matchedName
+                        Timestamp = $item.CreationTime
+                    }
+                    $startupMatches.Add($matchInfo)
+                }
+            }
+        } else {
+            $scanOutput.Add("WARNING: Startup folder not found: $($folder).")
+        }
+    }
+    if ($startupMatches.Count -gt 0) {
+        $foundFiles.AddRange($startupMatches)
+        $scanOutput.Add("FAILURE: Startup Locations Scan: Suspicious items found!")
+    } else {
+        $scanOutput.Add("SUCCESS: Startup Locations Scan: No suspicious items detected.")
+    }
+
+
+    Write-ColoredLine "`n-- Running Scheduled Tasks Scan --`n" Yellow
+    $scheduledTaskMatches = [System.Collections.Generic.List[object]]::new()
+    try {
+        $scheduledTasks = Get-ScheduledTask -ErrorAction SilentlyContinue
+
+        foreach ($task in $scheduledTasks) {
+            $taskName = $task.TaskName
+            $matchedName = Test-SuspiciousNameInternal -NameToCheck $taskName -SuspiciousNamesList $suspiciousNames
+
+            if ($null -eq $matchedName) {
+                $taskActions = $task | Get-ScheduledTaskInfo | Select-Object -ExpandProperty Actions -ErrorAction SilentlyContinue
+                foreach ($action in $taskActions) {
+                    if ($action.ActionType -eq "Exec" -and $action.Executable) {
+                        $executable = $action.Executable
+                        $fileName = [System.IO.Path]::GetFileName($executable)
+                        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($executable)
+
+                        $matchedName = Test-SuspiciousNameInternal -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+                        if ($null -eq $matchedName) {
+                            $matchedName = Test-SuspiciousNameInternal -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+                        }
+                        if ($null -eq $matchedName -and $action.Arguments) {
+                            $arguments = $action.Arguments
+                            foreach ($argWord in ($arguments -split '\s+')) {
+                                $matchedName = Test-SuspiciousNameInternal -NameToCheck $argWord.Trim("`"") -SuspiciousNamesList $suspiciousNames
+                                if ($null -ne $matchedName) { break }
+                            }
+                        }
+                    }
+                    if ($null -ne $matchedName) { break }
+                }
+            }
+
+            if ($null -ne $matchedName) {
+                $matchInfo = [PSCustomObject]@{
+                    Source    = "Scheduled Task"
+                    Path      = $task.TaskPath + $task.TaskName
+                    MatchedOn = $matchedName
+                    State     = $task.State
+                    LastRun   = $task.LastRunTime
+                }
+                $scheduledTaskMatches.Add($matchInfo)
+            }
+        }
+    } catch {
+        $scanOutput.Add("WARNING: An error occurred during scheduled tasks scan. Error: $($_.Exception.Message)")
+        $scanOutput.Add("WARNING: Ensure the 'ScheduledTasks' module is available and you have appropriate permissions.")
+    }
+    if ($scheduledTaskMatches.Count -gt 0) {
+        $foundFiles.AddRange($scheduledTaskMatches)
+        $scanOutput.Add("FAILURE: Scheduled Tasks Scan: Suspicious entries found!")
+    } else {
+        $scanOutput.Add("SUCCESS: Scheduled Tasks Scan: No suspicious entries detected.")
+    }
+
+
+    Write-ColoredLine "`n-- Running Network Connections Scan --`n" Yellow
+    $networkConnectionMatches = [System.Collections.Generic.List[object]]::new()
+    try {
+        $activeConnections = Get-NetTCPConnection -ErrorAction SilentlyContinue
+
+        foreach ($conn in $activeConnections) {
+            if ($conn.OwningProcess -ne 0) {
+                try {
+                    $process = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+                    if ($process) {
+                        $processName = $process.ProcessName
+                        $processPath = $process.Path
+
+                        $fileName = [System.IO.Path]::GetFileName($processPath)
+                        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($processPath)
+
+                        $matchedName = Test-SuspiciousNameInternal -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+                        if ($null -eq $matchedName) {
+                            $matchedName = Test-SuspiciousNameInternal -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+                        }
+                        if ($null -eq $matchedName) {
+                            $matchedName = Test-SuspiciousNameInternal -NameToCheck $processName -SuspiciousNamesList $suspiciousNames
+                        }
+
+                        if ($null -ne $matchedName) {
+                            $matchInfo = [PSCustomObject]@{
+                                Source        = "Network Connection"
+                                ProcessPath   = $processPath
+                                MatchedOn     = $matchedName
+                                PID           = $conn.OwningProcess
+                                LocalAddress  = "$($conn.LocalAddress):$($conn.LocalPort)"
+                                RemoteAddress = "$($conn.RemoteAddress):$($conn.RemotePort)"
+                                State         = $conn.State
+                                CreationTime  = $conn.CreationTime
+                            }
+                            $networkConnectionMatches.Add($matchInfo)
+                        }
+                    }
+                } catch {
+                }
+            }
+        }
+    } catch {
+        $scanOutput.Add("WARNING: An error occurred during network connections scan. Error: $($_.Exception.Message)")
+        $scanOutput.Add("WARNING: Ensure the 'NetTCPIP' module is available and you have appropriate permissions.")
+    }
+    if ($networkConnectionMatches.Count -gt 0) {
+        $foundFiles.AddRange($networkConnectionMatches)
+        $scanOutput.Add("FAILURE: Network Connections Scan: Suspicious connections found!")
+    } else {
+        $scanOutput.Add("SUCCESS: Network Connections Scan: No suspicious connections detected.")
+    }
+
+
+    Write-ColoredLine "`n-- Running Recently Used Applications Scan --`n" Yellow
+    $userAssistMatches = [System.Collections.Generic.List[object]]::new()
+    $userAssistPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\UserAssist"
+
+    try {
+        $userAssistGuids = Get-ChildItem -Path $userAssistPath -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer }
+
+        foreach ($guidKey in $userAssistGuids) {
+            $countKeyPath = "$($guidKey.PSPath)\Count"
+            try {
+                $properties = Get-ItemProperty -LiteralPath $countKeyPath -ErrorAction Stop
+
+                foreach ($property in $properties.PSObject.Properties) {
+                    if ($property.Name -notin 'PSPath', 'PSParentPath', 'PSChildName', 'PSDrive', 'PSProvider', '(default)') {
+                        $encodedPath = $property.Name
+                        $decodedPath = Decode-Rot13Internal -InputString $encodedPath
+
+                        $fileName = [System.IO.Path]::GetFileName($decodedPath)
+                        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($decodedPath)
+
+                        $matchedName = Test-SuspiciousNameInternal -NameToCheck $fileName -SuspiciousNamesList $suspiciousNames
+                        if ($null -eq $matchedName) {
+                            $matchedName = Test-SuspiciousNameInternal -NameToCheck $baseName -SuspiciousNamesList $suspiciousNames
+                        }
+
+                        if ($null -ne $matchedName) {
+                            $binaryData = $property.Value
+                            $lastRunTime = $null
+                            $timeAgo = "N/A"
+
+                            if ($binaryData -and $binaryData.Length -ge 16) {
+                                try {
+                                    $fileTimeBytes = $binaryData[8..15]
+                                    $fileTimeLong = [System.BitConverter]::ToInt64($fileTimeBytes, 0)
+                                    $lastRunTime = [System.DateTime]::FromFileTimeUtc($fileTimeLong).ToLocalTime()
+
+                                    $timeDifference = (Get-Date) - $lastRunTime
+                                    if ($timeDifference.TotalDays -ge 1) {
+                                        $timeAgo = "{0:0} days, {1:0} hours ago" -f $timeDifference.TotalDays, $timeDifference.Hours
+                                    } elseif ($timeDifference.TotalHours -ge 1) {
+                                        $timeAgo = "{0:0} hours, {1:0} minutes ago" -f $timeDifference.TotalHours, $timeDifference.Minutes
+                                    } elseif ($timeDifference.TotalMinutes -ge 1) {
+                                        $timeAgo = "{0:0} minutes, {1:0} seconds ago" -f $timeDifference.TotalMinutes, $timeDifference.Seconds
+                                    } else {
+                                        $timeAgo = "{0:0} seconds ago" -f $timeDifference.TotalSeconds
+                                    }
+                                } catch {
+                                    $scanOutput.Add("WARNING: Failed to parse timestamp for UserAssist entry $($decodedPath). Error: $($_.Exception.Message)")
+                                }
+                            }
+
+                            $matchInfo = [PSCustomObject]@{
+                                Source    = "Recently Used App (UserAssist)"
+                                Path      = $decodedPath
+                                MatchedOn = $matchedName
+                                Timestamp = $lastRunTime
+                                TimeAgo   = $timeAgo
+                            }
+                            $userAssistMatches.Add($matchInfo)
+                        }
+                    }
+                }
+            } catch {
+                $scanOutput.Add("WARNING: Could not scan UserAssist subkey $($guidKey.Name). Error: $($_.Exception.Message)")
+            }
+        }
+    } catch {
+        $scanOutput.Add("WARNING: An error occurred during Recently Used Applications scan. Could not access UserAssist registry path. Error: $($_.Exception.Message)")
+        $scanOutput.Add("WARNING: Ensure you have appropriate permissions.")
+    }
+    if ($userAssistMatches.Count -gt 0) {
+        $foundFiles.AddRange($userAssistMatches)
+        $scanOutput.Add("FAILURE: Recently Used Applications Scan: Suspicious applications found!")
+    } else {
+        $scanOutput.Add("SUCCESS: Recently Used Applications Scan: No suspicious applications detected.")
+    }
+
+    return @{
+        ScanOutput = $scanOutput
+        FoundFiles = $foundFiles
+    }
+}
+
+Write-ColoredLine "Step 2 of 3: SYSTEM Scan" Cyan
+
+$suspiciousScanResults = Find-SuspiciousFilesInternal
+
+$suspiciousFileScanOutput = $suspiciousScanResults.ScanOutput
+$foundSuspiciousFiles = $suspiciousScanResults.FoundFiles
+
+foreach ($line in $suspiciousFileScanOutput) {
+    if ($line -like "FAILURE: File System Scan: Suspicious files found!") {
+        $modulesOutput += "WARNING: File System Scan: Suspicious files found!"
+    } elseif ($line -like "FAILURE: Prefetch Scan: Suspicious entries found!") {
+        $modulesOutput += "WARNING: Prefetch Scan: Suspicious entries found!"
+    }
+    else {
+        $modulesOutput += $line
+    }
+}
+
+
+Write-Section "Files + Modules" $modulesOutput
+Write-Section "Memory Integrity" $memoryIntegrityOutput
+Write-Section "Windows Defender" $defenderOutput
+Write-Section "Exclusions" $exclusionsOutput
+Write-Section "Threats" $threatsOutput
+Write-Section "Binary Sig" $powershellSigOutput
+
+Wait-ForEnter -Message "Press Enter to Continue"
+Clear-Host
+
+Write-ColoredLine "`n--- Detailed Suspicious Files Found ---" White
+
+if ($foundSuspiciousFiles.Count -gt 0) {
+    $groupedFiles = $foundSuspiciousFiles | Group-Object -Property MatchedOn
+
+    Write-ColoredLine "The scan found files/entries matching the following names:" Yellow
+    foreach ($group in $groupedFiles) {
+        Write-ColoredLine "- $($group.Name)" Red
+        foreach ($file in $group.Group) {
+            $sourceColor = 'White'
+            if ($file.Source -eq "File System" -or $file.Source -eq "Prefetch") {
+                $sourceColor = 'Cyan'
+            }
+            Write-ColoredLine "  Source: $($file.Source)" $sourceColor
+            Write-ColoredLine "  Path: $($file.Path)" DarkYellow
+            if ($file | Get-Member -Name "PID") { Write-ColoredLine "  PID: $($file.PID)" White }
+            if ($file | Get-Member -Name "State") { Write-ColoredLine "  State: $($file.State)" White }
+            if ($file | Get-Member -Name "LocalAddress") { Write-ColoredLine "  Local Address: $($file.LocalAddress)" White }
+            if ($file | Get-Member -Name "RemoteAddress") { Write-ColoredLine "  Remote Address: $($file.RemoteAddress)" White }
+
+            if ($file.Timestamp -ne $null) {
+                Write-ColoredLine "  Timestamp: $($file.Timestamp)" White
+            } else {
+                Write-ColoredLine "  Timestamp: N/A" White
+            }
+
+            if ($file | Get-Member -Name "TimeAgo") {
+                Write-ColoredLine "  Time Ago: $($file.TimeAgo)" White
+            }
+
+            if ($file | Get-Member -Name "LastRun") {
+                if ($file.LastRun -ne $null) {
+                    Write-ColoredLine "  Last Run: $($file.LastRun)" White
+                } else {
+                    Write-ColoredLine "  Last Run: N/A" White
+                }
+            }
+            Write-ColoredLine "" White
+        }
+    }
+} else {
+    Write-ColoredLine "No suspicious files or entries were detected during the scan." Green
+}
+
+$allResults = $modulesOutput + $windowsOutput + $memoryIntegrityOutput + $defenderOutput + $exclusionsOutput + $threatsOutput + $powershellSigOutput
+$total = ($allResults | Where-Object { $_ -match '^(SUCCESS|FAILURE|WARNING)' }).Count
+$success = ($allResults | Where-Object { $_ -match '^SUCCESS' }).Count
+$rate = if ($total -gt 0) { [math]::Round(($success / $total) * 100, 0) } else { 0 }
+$rateColor = if ($rate -eq 100) { "Green" } else { "Red" }
+
+Write-Host ""
+Write-Host ("Success Rate: $rate% ($success / $total)") -ForegroundColor $rateColor
+
+Wait-ForEnter -Message "Press Enter to Continue"
+Clear-Host
+
+# ====== STEP 2: PROCESS EXPLORER ======
+
+$IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+if (-not $IsAdmin) {
+    $scriptPath = try {
+        (Resolve-Path -Path $MyInvocation.MyCommand.Definition).Path
+    } catch {
+        Write-Host "[ERROR] Could not resolve script path. Are you running this from a file?" -ForegroundColor Red
+        pause
+        exit 1
+    }
+
+    Write-Host "[INFO] Relaunching with admin rights..." -ForegroundColor Yellow
+    Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"" -Verb RunAs
+    exit
+}
+
+Clear-Host
+Write-ColoredLine "Step 3 of 3: Process Explorer" Cyan
+Write-ColoredLine "INSTRUCTION: Wait for Process Explorer to open. Scroll to the bottom, then close the window." Yellow
+Write-Host ""
+Show-LoadingBar
+
+$processNames = @("procexp32", "procexp64", "procexp64a")
+$runningPE = Get-Process -ErrorAction SilentlyContinue | Where-Object { $processNames -contains $_.ProcessName.ToLower() }
+
+if ($runningPE) {
+    Write-ColoredLine "[SUCCESS] Found and terminated running Process Explorer process(es)." Green
+    $runningPE | ForEach-Object {
+        try {
+            $_ | Stop-Process -Force -ErrorAction Stop
+            Write-ColoredLine "[SUCCESS]  • Terminated process ID $($_.Id)." Green
+        } catch {
+            Write-ColoredLine "[FAILED]  • Failed to terminate process ID $($_.Id): $($_.Exception.Message)" Red
+        }
+    }
+    Start-Sleep -Seconds 2
+    Write-ColoredLine "[SUCCESS] All Process Explorer processes terminated." Green
+} else {
+    Write-ColoredLine "[SUCCESS] No running Process Explorer processes were found." Green
+}
+
+$baseFolder = "C:\ToolsETA"
+$extractFolder = Join-Path $baseFolder "ProcessExplorer"
+$zipUrl = "https://download.sysinternals.com/files/ProcessExplorer.zip"
+$zipPath = Join-Path $baseFolder "ProcessExplorer.zip"
+
+if (Test-Path $baseFolder) {
+    Write-ColoredLine "[SUCCESS] Cleaned up existing C:\ToolsETA folder." Green
+    Get-ChildItem -Path $baseFolder -Force -Recurse | ForEach-Object {
+        try {
+            if ($_.Attributes -band [System.IO.FileAttributes]::ReadOnly) {
+                $_.Attributes = $_.Attributes -bxor [System.IO.FileAttributes]::ReadOnly
+            }
+            if ($_.Attributes -band [System.IO.FileAttributes]::Hidden) {
+                $_.Attributes = $_.Attributes -bxor [System.IO.FileAttributes]::Hidden
+            }
+            Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop
+        } catch {
+            Write-ColoredLine "[INFO] Didn't remove item $($_.FullName): $($_.Exception.Message)" White
+        }
+    }
+} else {
+    try {
+        New-Item -ItemType Directory -Path $baseFolder -ErrorAction Stop | Out-Null
+        Write-ColoredLine '[SUCCESS] Created folder C:\ToolsETA.' Green
+    } catch {
+        Write-ColoredLine '[INFO] Folder may already exist' Green
+    }
+}
+
+try {
+    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing -ErrorAction Stop
+    Write-ColoredLine '[SUCCESS] Downloaded Process Explorer.' Green
+} catch {
+    Write-ColoredLine '[FAILED] Failed to download Process Explorer: $($_.Exception.Message)' Red
+}
+
+try {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $extractFolder)
+    Write-ColoredLine '[SUCCESS] Extracted Process Explorer zip.' Green
+} catch {
+    Write-ColoredLine '[SUCCESS] Files already exist' Green
+}
+Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+
+$regFileUrl = "https://pastebin.com/raw/gse8NxwU"
+$regFilePath = Join-Path $baseFolder "procexp_config.reg"
+
+try {
+    Invoke-WebRequest -Uri $regFileUrl -OutFile $regFilePath -UseBasicParsing -ErrorAction Stop
+    Write-ColoredLine "[SUCCESS] Downloaded Process Explorer registry configuration." Green
+} catch {
+    Write-ColoredLine "[FAILED] Failed to download registry config: $($_.Exception.Message)" Red
+}
+
+try {
+    $cmdPath = "$env:SystemRoot\System32\cmd.exe"
+    if (-Not (Test-Path $cmdPath)) {
+        throw "cmd.exe not found at expected location: $cmdPath"
+    }
+    & $cmdPath /c "reg import `"$regFilePath`""
+    if ($LASTEXITCODE -eq 0) {
+        Write-ColoredLine "[SUCCESS] Imported registry configuration successfully." Green
+    } else {
+        Write-ColoredLine "[FAILED] reg import returned non-zero exit code: $LASTEXITCODE" Red
+    }
+} catch {
+    Write-ColoredLine "[FAILED] Registry importing failed: $($_.Exception.Message)" Red
+}
+
+$actualExe = Get-ChildItem -Path $extractFolder -Filter "procexp64.exe" -Recurse | Select-Object -First 1
+
+if ($actualExe) {
+    Write-ColoredLine "[SUCCESS] Launched Process Explorer." Green
+    $process = Start-Process -FilePath $actualExe.FullName -PassThru
+    Start-Sleep -Seconds 1
+
+    $wshell = New-Object -ComObject wscript.shell
+    Start-Sleep -Milliseconds 500
+    $null = $wshell.AppActivate($process.Id)
+    Start-Sleep -Milliseconds 500
+    $wshell.SendKeys('% ')
+    Start-Sleep -Milliseconds 200
+    $wshell.SendKeys('x')
+    Start-Sleep -Milliseconds 500
+
+    Write-ColoredLine "[SUCCESS] Process Explorer window maximized." Green
+    Write-ColoredLine "[SUCCESS] Process Explorer launched successfully." Green
+    Write-Host ""
+
+    $process.WaitForExit()
+    Write-ColoredLine "[SUCCESS] Success Rate: 100% (1 / 1)." Green
+} else {
+    Write-ColoredLine "[FAILED] procexp64.exe was not found." Red
+    Write-ColoredLine "[SUCCESS] Success Rate: 0% (0 / 1)." Red
+}
+
+Wait-ForEnter -Message "Press Enter to exit."
+exit
+
+
+# Script fully made by Ichiro (".aw_") with some skided mcl t1 rules
