@@ -2,6 +2,7 @@
 
 
 --- MCL Justice Department Activity Checker ---
+
 This tool is exclusively for members of the MCL Justice Department to investigate
 player activity within the competitive server, MCL. It is designed to be
 deployed **after** initial suspicion arises from observed gameplay or submitted clips,
@@ -18,6 +19,7 @@ but does not replace the thoroughness of a dedicated, in-depth PC inspection.
 
 Specifically, this checker performs a deep system analysis to identify digital
 fingerprints associated with common Roblox cheats and exploit tools, including:
+
   ??? File System Scan: Locates suspicious executable files, DLLs, or archives (like '.exe', '.zip', '.rar')
     often associated with Roblox exploits or cheat injection.
   ??? Registry Analysis (MuiCache, Run Keys, UserAssist): Uncovers evidence of previously executed exploit clients,
@@ -36,6 +38,7 @@ The objective is to provide the Justice Department with clear, actionable data t
 support disciplinary decisions, ensuring a fair and competitive environment within MCL.
 
 === Discord Servers ===
+
 discord.gg/mcl
 discord.gg/rivalsleague
 discord.gg/eta
@@ -43,4 +46,5 @@ discord.gg/etajd
 
 
 === Credits ===
+
 Made by @.aw_
