@@ -40,8 +40,11 @@ support disciplinary decisions, ensuring a fair and competitive environment with
 === Discord Servers ===
 
 discord.gg/mcl
+
 discord.gg/rivalsleague
+
 discord.gg/eta
+
 discord.gg/etajd
 
 
